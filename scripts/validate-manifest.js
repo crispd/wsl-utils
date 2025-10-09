@@ -102,14 +102,57 @@ function loadSchema(uri) {
     const validate = await ajv.compileAsync(schema);
     const valid = validate(data);
     if (!valid) {
-      console.error('manifest.json is INVALID');
-      console.error(validate.errors);
+      console.error('\nmanifest.json is INVALID — validation errors:');
+      // Pretty-print AJV errors with context to help debugging
+      validate.errors.forEach((err, i) => {
+        const instancePath = err.instancePath || err.dataPath || '/';
+        const schemaPath = err.schemaPath || '';
+        const keyword = err.keyword || '';
+        const message = err.message || '';
+        console.error(`\n[${i + 1}] ${keyword} ${message}`);
+        console.error(`  instancePath: ${instancePath}`);
+        if (schemaPath) console.error(`  schemaPath: ${schemaPath}`);
+        if (err.params) console.error(`  params: ${JSON.stringify(err.params)}`);
+
+        // Try to show a small snippet of the failing data
+        try {
+          const snippet = getDataAtPointer(data, instancePath);
+          const printed = JSON.stringify(snippet, null, 2);
+          const preview = printed.length > 300 ? printed.slice(0, 300) + '...': printed;
+          console.error(`  data: ${preview}`);
+        } catch (e) {
+          // ignore
+        }
+      });
       process.exit(1);
     }
     console.log('manifest.json is valid');
     process.exit(0);
   } catch (err) {
-    console.error('Validation failed unexpectedly:', err.message);
+    console.error('Validation failed unexpectedly:');
+    console.error(err && err.stack ? err.stack : String(err));
     process.exit(2);
   }
 })();
+
+// Helper: resolve a JSON Pointer-like instancePath (e.g. '/tasks/backup/steps/0')
+function getDataAtPointer(root, pointer) {
+  if (!pointer || pointer === '/') return root;
+  // AJV instancePath is a JSON Pointer without the '#'
+  const parts = pointer.replace(/^\//, '').split('/').map(unescapePointer);
+  let cur = root;
+  for (const p of parts) {
+    if (cur === undefined || cur === null) return undefined;
+    if (Array.isArray(cur)) {
+      const idx = parseInt(p, 10);
+      cur = cur[idx];
+    } else {
+      cur = cur[p];
+    }
+  }
+  return cur;
+}
+
+function unescapePointer(str) {
+  return str.replace(/~1/g, '/').replace(/~0/g, '~');
+}
