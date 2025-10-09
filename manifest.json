@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "items": {
+    "wsl-utils": {
+      "kind": "module",
+      "source_patterns": ["scripts/wsl-utils.psm1", "wsl/wsl-utils.psm1", "wsl-utils.psm1"],
+      "install_relative": "modules/wsl-utils/wsl-utils.psm1"
+    },
+    "set-default-user": {
+      "kind": "script",
+      "source_patterns": ["scripts/linux/set-default-user.sh", "linux/set-default-user.sh"],
+      "install_relative": "scripts/linux/set-default-user.sh",
+      "executable": true
+    },
+    "pre-clean-wsl": {
+      "kind": "script",
+      "source_patterns": ["scripts/linux/pre-clean-wsl.sh", "linux/pre-clean-wsl.sh"],
+      "install_relative": "scripts/linux/pre-clean-wsl.sh",
+      "executable": true
+    },
+    "Backup-WSL": {
+      "kind": "powershell",
+      "source_patterns": ["scripts/Backup-WSL.ps1"],
+      "install_relative": "scripts/Backup-WSL.ps1",
+      "add_to_path": true
+    },
+    "Import-WSLTest": {
+      "kind": "powershell",
+      "source_patterns": ["scripts/Import-WSLTest.ps1"],
+      "install_relative": "scripts/Import-WSLTest.ps1",
+      "add_to_path": true
+    },
+    "bootstrap": {
+      "kind": "powershell",
+      "source_patterns": ["scripts/bootstrap.ps1"],
+      "install_relative": "scripts/bootstrap.ps1"
+    },
+    "uninstall-wsl-tools": {
+      "kind": "powershell",
+      "source_patterns": ["scripts/uninstall-wsl-tools.ps1"],
+      "install_relative": "scripts/uninstall-wsl-tools.ps1"
+    }
+  }
+}

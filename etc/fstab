@@ -1,0 +1,17 @@
+# If you're reading this, consider checking /etc/wsl.conf before editing
+# C: mounts only when accessed
+#c: /mnt/c drvfs nofail,noauto,x-systemd.automount,metadata,umask=022,fmask=011 0 0
+
+# D: mounts only when accessed (works even if the external drive is unplugged)
+#   Could harden this later by specifically checking Windows Volume GUID (psh> mountvol D: /L)
+#   \\?\Volume{YOUR-GUID}\ /mnt/d drvfs nofail,noauto,x-systemd.automount,x-systemd.idle-timeout=10min,metadata 0 0
+d: /mnt/d drvfs nofail,noauto,x-systemd.automount,x-systemd.idle-timeout=10min,metadata 0 0
+
+# NOTICE: It is still best practice to unmount any mounted drives before unplugging
+# > sudo umount /mnt/d
+#
+# Can check automount units are ready
+# > systemctl status mnt-d.automount
+# or mount status
+# > stat -C '%U:%G %a %n' /mnt/d 2>/dev/null || echo "D: not mounted (likely unplugged)"
+
