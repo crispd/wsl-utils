@@ -1,0 +1,7 @@
+{
+  "json.schemas": [
+    { "fileMatch": ["manifest.json"], "url": "./schema/manifest.schema.json" },
+    { "fileMatch": ["/schema/manifest.schema.json"], "url": "./schema/manifest.schema.json" },
+    { "fileMatch": ["/schema/draft2020-12.json", "schema/draft2020-12.json"], "url": "./schema/draft2020-12.json" }
+  ]
+}

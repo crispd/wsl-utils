@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pre-clean-wsl.sh
+# pre-export-clean.sh
 # Safe(ish) cache/log cleanup to shrink export size before WSL backup.
 # Supports: RHEL/Alma/Rocky (dnf|yum), Debian/Ubuntu (apt), Arch (pacman)
 # Usage: pre-clean-wsl.sh [--dry-run] [--keep-journal-days N]

@@ -1,0 +1,100 @@
+{
+  "$schema": "file:./draft2020-12.json",
+  "$id": "https://crispd.github.io/wsl-utils/schema/manifest.schema.json",
+  "title": "wsl-utils manifest v2",
+  "$defs": {
+    "stepBase": {
+      "type": "object",
+      "required": ["run"],
+      "properties": {
+        "run": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "inDistro": { "type": "string" },
+        "requiresElevation": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "psStep": {
+      "allOf": [
+        { "$ref": "#/$defs/stepBase" },
+        { "properties": { "run": { "pattern": "^(ps):[A-Za-z0-9_-]+$" } } }
+      ]
+    },
+    "bashStep": {
+      "allOf": [
+        { "$ref": "#/$defs/stepBase" },
+        { "properties": { "run": { "pattern": "^(bash):[A-Za-z0-9_-]+$" } } }
+      ]
+    }
+  },
+  "type": "object",
+  "required": ["version", "defaults", "scripts", "tasks"],
+  "properties": {
+    "$schema": { "type": "string", "format": "uri"},
+    "version": { "const": "2" },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "installRoot": { "type": "string" },
+        "scriptsDir": { "type": "string" },
+        "etcDir": { "type": "string" },
+        "logDir": { "type": "string" },
+        "backupsDir": { "type": "string" },
+        "importTempDir": { "type": "string" },
+        "tarNamePattern": { "type": "string" },
+        "wslExecutable": { "type": "string" },
+        "compression": { "enum": ["none", "gzip", "zstd"] },
+        "overwriteLogs": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "distros": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "aliases": { "type": "array", "items": { "type": "string" } },
+          "defaultUser": { "type": "string" },
+          "stopBeforeBackup": { "type": "boolean" },
+          "preClean": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "scripts": {
+      "type": "object",
+      "properties": {
+        "ps": { "type": "object", "additionalProperties": { "type": "object", "properties": {
+          "path": { "type": "string" },
+          "requiresElevation": { "type": "boolean" }
+        }, "required": ["path"] } },
+        "bash": { "type": "object", "additionalProperties": { "type": "object", "properties": {
+          "path": { "type": "string" }
+        }, "required": ["path"] } }
+      },
+      "required": ["ps", "bash"]
+    },
+    "tasks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "steps": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                { "$ref": "#/$defs/psStep" },
+                { "$ref": "#/$defs/bashStep" }
+              ]
+            }
+          }
+        },
+        "required": ["steps"]
+      }
+    }
+  },
+  "additionalProperties": false
+}

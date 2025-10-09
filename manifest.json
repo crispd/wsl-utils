@@ -1,44 +1,96 @@
 {
-  "version": "1.0",
-  "items": {
-    "wsl-utils": {
-      "kind": "module",
-      "source_patterns": ["scripts/wsl-utils.psm1", "wsl/wsl-utils.psm1", "wsl-utils.psm1"],
-      "install_relative": "modules/wsl-utils/wsl-utils.psm1"
+  "version": "2",
+  "defaults": {
+    "installRoot": "%USERPROFILE%/WSL",
+    "scriptsDir": "scripts",
+    "etcDir": "etc",
+    "logDir": "%USERPROFILE%/WSL/logs",
+    "backupsDir": "%USERPROFILE%/WSL/backups",
+    "importTempDir": "%USERPROFILE%/WSL/temp",
+    "tarNamePattern": "{distro}-{yyyy}-{MM}-{dd}_{HHmmss}.tar",
+    "wslExecutable": "wsl.exe",
+    "compression": "none",
+    "overwriteLogs": true
+  },
+
+  "distros": [
+    {
+      "name": "AlmaLinux",
+      "aliases": ["AlmaLinux9", "AL9"],
+      "defaultUser": "dan",
+      "stopBeforeBackup": true,
+      "preClean": true
+    }
+  ],
+
+  "scripts": {
+    "ps": {
+      "backup":       { "path": "scripts/powershell/Backup-WSL.ps1",     "requiresElevation": false },
+      "export":       { "path": "scripts/powershell/Export-WSL.ps1",     "requiresElevation": false },
+      "import":       { "path": "scripts/powershell/Import-WSL.ps1",     "requiresElevation": true  },
+      "bootstrap":    { "path": "scripts/powershell/bootstrap.ps1",      "requiresElevation": false }
     },
+    "bash": {
+      "setDefaultUser": { "path": "scripts/bash/set-default-user.sh" },
+      "preClean":       { "path": "scripts/bash/pre-export-clean.sh"   }
+    }
+  },
+
+  "tasks": {
+    "backup": {
+      "description": "Export a WSL distro to a tar archive",
+      "steps": [
+        {
+          "run": "ps:backup",
+          "args": ["-DistroName", "{distro}", "-OutputDir", "{defaults.backupsDir}"]
+        }
+      ]
+    },
+
+    "export": {
+      "description": "Alias of backup with explicit path",
+      "steps": [
+        {
+          "run": "ps:export",
+          "args": ["-DistroName", "{distro}", "-Output", "{output}"]
+        }
+      ]
+    },
+
+    "import": {
+      "description": "Import a tar into a new distro",
+      "steps": [
+        {
+          "run": "ps:import",
+          "args": [
+            "-NewDistroName", "{distro}",
+            "-TarPath", "{tar}",
+            "-InstallLocation", "{defaults.installRoot}/distros/{distro}"
+          ],
+          "requiresElevation": true
+        }
+      ]
+    },
+
     "set-default-user": {
-      "kind": "script",
-      "source_patterns": ["scripts/linux/set-default-user.sh", "linux/set-default-user.sh"],
-      "install_relative": "scripts/linux/set-default-user.sh",
-      "executable": true
+      "description": "Set default Linux user inside a distro",
+      "steps": [
+        {
+          "run": "bash:setDefaultUser",
+          "inDistro": "{distro}",
+          "args": ["{user}"]
+        }
+      ]
     },
-    "pre-clean-wsl": {
-      "kind": "script",
-      "source_patterns": ["scripts/linux/pre-clean-wsl.sh", "linux/pre-clean-wsl.sh"],
-      "install_relative": "scripts/linux/pre-clean-wsl.sh",
-      "executable": true
-    },
-    "Backup-WSL": {
-      "kind": "powershell",
-      "source_patterns": ["scripts/Backup-WSL.ps1"],
-      "install_relative": "scripts/Backup-WSL.ps1",
-      "add_to_path": true
-    },
-    "Import-WSLTest": {
-      "kind": "powershell",
-      "source_patterns": ["scripts/Import-WSLTest.ps1"],
-      "install_relative": "scripts/Import-WSLTest.ps1",
-      "add_to_path": true
-    },
-    "bootstrap": {
-      "kind": "powershell",
-      "source_patterns": ["scripts/bootstrap.ps1"],
-      "install_relative": "scripts/bootstrap.ps1"
-    },
-    "uninstall-wsl-tools": {
-      "kind": "powershell",
-      "source_patterns": ["scripts/uninstall-wsl-tools.ps1"],
-      "install_relative": "scripts/uninstall-wsl-tools.ps1"
+
+    "pre-clean": {
+      "description": "Clean caches/logs/etc. inside distro prior to backup",
+      "steps": [
+        {
+          "run": "bash:preClean",
+          "inDistro": "{distro}"
+        }
+      ]
     }
   }
 }

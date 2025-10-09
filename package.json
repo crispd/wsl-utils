@@ -1,0 +1,13 @@
+{
+  "name": "wsl-utils",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Validation and tooling for wsl-utils manifest",
+  "scripts": {
+    "validate:manifest": "node scripts/validate-manifest.js"
+  },
+  "devDependencies": {
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1"
+  }
+}
