@@ -27,36 +27,28 @@ const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
 // fragments (like "meta/core") which aren't available as separate files locally.
 const ajv = new Ajv2020({ allErrors: true, strict: false, loadSchema: loadSchema, meta: false });
 addFormats(ajv);
- 
 
 function loadSchema(uri) {
-  // Resolve file: URIs relative to schema folder. Handles two cases:
-  //  - file:someFile.json  -> loads schema file at schema/someFile.json
-  //  - file:meta/core       -> the official meta-schema references sub-schemas by path
-  //                         which may exist only inside the downloaded draft file.
+  // Resolve file: URIs relative to schema folder. Handles file:someFile.json and
+  // file:meta/core style references by extracting sub-objects from the local draft file.
   if (uri.startsWith('file:')) {
     const full = uri.slice('file:'.length);
-    // split off fragment if present
     const [p, hash] = full.split('#', 2);
     const candidate = path.resolve(path.dirname(schemaPath), p || '');
     if (p && fs.existsSync(candidate)) {
       const loaded = JSON.parse(fs.readFileSync(candidate, 'utf8'));
-      // avoid duplicate registration of $id
-      try { if (loaded && loaded.$id && ajv && ajv.getSchema(loaded.$id)) delete loaded.$id } catch (e) {}
-      // if a fragment was supplied, resolve it as a simple JSON pointer (rough support)
+      if (loaded && loaded.$id && ajv && ajv.getSchema(loaded.$id)) delete loaded.$id;
       if (hash) {
-        // strip leading '/' if present
         const pointer = hash.replace(/^\//, '');
         const parts = pointer.split('/').map(decodeURIComponent).filter(Boolean);
         let cur = loaded;
-        for (const part of parts) { cur = cur && cur[part] }
+        for (const part of parts) { cur = cur && cur[part]; }
         return Promise.resolve(cur || loaded);
       }
       return Promise.resolve(loaded);
     }
 
-    // If candidate file doesn't exist, attempt to resolve the path inside the local draft file
-    // e.g., uri 'file:meta/core' should return the object at draft['meta']['core'] if present.
+    // Fall back: try to extract sub-schema from local draft2020-12.json (if present)
     const draftPath = path.resolve(path.dirname(schemaPath), 'draft2020-12.json');
     if (fs.existsSync(draftPath)) {
       const draft = JSON.parse(fs.readFileSync(draftPath, 'utf8'));
@@ -71,23 +63,11 @@ function loadSchema(uri) {
         }
       }
       if (cur) {
-        // If AJV expects the ref under the meta-schema namespace, register this sub-schema
-        // under a composed id so subsequent refs can resolve (e.g. 'https://json-schema.org/draft/2020-12/schema/meta/core').
-        try {
-          const composedId = 'https://json-schema.org/draft/2020-12/schema/' + parts.join('/');
-          if (cur && cur.$id) delete cur.$id;
-          // register only if not already present
-          if (!ajv.getSchema(composedId)) {
-            ajv.addSchema(cur, composedId);
-          }
-        } catch (e) {
-          // ignore registration errors
-        }
+        if (cur && cur.$id && ajv && ajv.getSchema(cur.$id)) delete cur.$id;
         return Promise.resolve(cur);
       }
     }
   }
-  // Fallback to network fetch is omitted for security
   return Promise.reject(new Error('Unable to load schema: ' + uri));
 }
 
@@ -103,6 +83,14 @@ function loadSchema(uri) {
     const valid = validate(data);
     if (!valid) {
       console.error('\nmanifest.json is INVALID — validation errors:');
+
+      // Prepare markdown report
+      const reportLines = [];
+      reportLines.push('# manifest.json validation report');
+      reportLines.push('');
+      reportLines.push('The manifest failed validation against `schema/manifest.schema.json`. See details below.');
+      reportLines.push('');
+
       // Pretty-print AJV errors with context to help debugging
       validate.errors.forEach((err, i) => {
         const instancePath = err.instancePath || err.dataPath || '/';
@@ -115,15 +103,52 @@ function loadSchema(uri) {
         if (err.params) console.error(`  params: ${JSON.stringify(err.params)}`);
 
         // Try to show a small snippet of the failing data
+        let preview = '';
         try {
           const snippet = getDataAtPointer(data, instancePath);
           const printed = JSON.stringify(snippet, null, 2);
-          const preview = printed.length > 300 ? printed.slice(0, 300) + '...': printed;
+          preview = printed.length > 300 ? printed.slice(0, 300) + '...' : printed;
           console.error(`  data: ${preview}`);
         } catch (e) {
           // ignore
         }
+
+        // Add to markdown report
+        reportLines.push(`## Error ${i + 1}`);
+        reportLines.push('');
+        reportLines.push(`- **keyword**: ${keyword}`);
+        reportLines.push(`- **message**: ${message}`);
+        reportLines.push(`- **instancePath**: \`${instancePath}\``);
+        if (schemaPath) reportLines.push(`- **schemaPath**: \`${schemaPath}\``);
+        if (err.params) {
+          reportLines.push('- **params**:');
+          reportLines.push('');
+          reportLines.push('```json');
+          reportLines.push(JSON.stringify(err.params, null, 2));
+          reportLines.push('```');
+        }
+        if (preview) {
+          reportLines.push('');
+          reportLines.push('**data**:');
+          reportLines.push('');
+          reportLines.push('```json');
+          reportLines.push(preview);
+          reportLines.push('```');
+        }
+        reportLines.push('');
       });
+
+      // write report file
+      try {
+        const reportDir = path.resolve(__dirname, '..', 'reports');
+        if (!fs.existsSync(reportDir)) fs.mkdirSync(reportDir, { recursive: true });
+        const reportPath = path.resolve(reportDir, 'manifest-validation.md');
+        fs.writeFileSync(reportPath, reportLines.join('\n'), 'utf8');
+        console.error('\nWrote validation report to ' + reportPath);
+      } catch (e) {
+        console.error('Failed to write validation report:', e && e.message ? e.message : String(e));
+      }
+
       process.exit(1);
     }
     console.log('manifest.json is valid');

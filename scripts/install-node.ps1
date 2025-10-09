@@ -42,12 +42,12 @@ if ($wingetCmd) {
 
 function Install-ById($id) {
     Write-Host "Attempting to install package id: $id"
-    $wingetArgs = @('install','--id',$id,'-e')
-    if ($Force) { $wingetArgs += '--silent' }
+    $wingetCommandStrings = @('install','--id',$id,'-e')
+    if ($Force) { $wingetCommandStrings += '--silent' }
     # Preferred: invoke the 'winget' command directly so PowerShell resolves the correct handler
     try {
-        if ($Debug) { Write-Host "Invoking: winget $($wingetArgs -join ' ')" -ForegroundColor Cyan }
-        & winget @wingetArgs
+        if ($Debug) { Write-Host "Invoking: winget $($wingetCommandStrings -join ' ')" -ForegroundColor Cyan }
+        & winget @wingetCommandStrings
         $ec = $LASTEXITCODE
         Write-Host "winget exited with code $ec"
         return ($ec -eq 0)
@@ -58,8 +58,8 @@ function Install-ById($id) {
         if ($wingetCmd -and $wingetCmd.CommandType -eq 'ExternalScript') {
             $scriptPath = $wingetCmd.Source
             try {
-                if ($Debug) { Write-Host "Invoking: powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath $($wingetArgs -join ' ')" -ForegroundColor Cyan }
-                & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath @wingetArgs
+                if ($Debug) { Write-Host "Invoking: powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath $($wingetCommandStrings -join ' ')" -ForegroundColor Cyan }
+                & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath @wingetCommandStrings
                 $ec = $LASTEXITCODE
                 Write-Host "powershell winget script exited with code $ec"
                 return ($ec -eq 0)
