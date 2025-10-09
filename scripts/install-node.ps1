@@ -1,6 +1,9 @@
+[CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact='Medium')]
 param(
     [switch]$Force,
-    [switch]$Debug
+    [switch]$DebugMode,
+    [switch]$Silent,
+    [switch]$DryRun
 )
 
 Write-Host "Checking for Node.js on PATH..."
@@ -14,18 +17,24 @@ try {
     Write-Host "Node not found. Will attempt to install via winget."
 }
 
-Write-Host "Running: winget search node"
-$results = winget search node | Select-Object -First 200
+if (-not $DryRun) {
+    Write-Host "Running: winget search node"
+    $results = winget search node | Select-Object -First 200
 
-if (-not $results) {
-    Write-Host "winget search returned no results or winget is not available." -ForegroundColor Yellow
-    Write-Host "Please run 'winget search node' manually or install Node from https://nodejs.org/"
-    exit 1
-}
+    if (-not $results) {
+        Write-Host "winget search returned no results or winget is not available." -ForegroundColor Yellow
+        Write-Host "Please run 'winget search node' manually or install Node from https://nodejs.org/"
+        exit 1
+    }
 
-$results | ForEach-Object -Begin { $i = 0 } -Process {
-    $i++
-    Write-Host "[$i] $_"
+    $results | ForEach-Object -Begin { $i = 0 } -Process {
+        $i++
+        Write-Host "[$i] $_"
+    }
+} else {
+    Write-Host "DryRun: skipping winget search (no network calls)"
+    $results = @()
+    $i = 0
 }
 
 $primaryId = 'OpenJS.NodeJS.LTS'
@@ -44,9 +53,18 @@ function Install-ById($id) {
     Write-Host "Attempting to install package id: $id"
     $wingetCommandStrings = @('install','--id',$id,'-e')
     if ($Force) { $wingetCommandStrings += '--silent' }
+
     # Preferred: invoke the 'winget' command directly so PowerShell resolves the correct handler
     try {
-        if ($Debug) { Write-Host "Invoking: winget $($wingetCommandStrings -join ' ')" -ForegroundColor Cyan }
+        if ($DryRun) {
+            Write-Output "DRY-RUN: would invoke: winget $($wingetCommandStrings -join ' ')"
+            return $true
+        }
+    if ($DebugMode) { Write-Host "Invoking: winget $($wingetCommandStrings -join ' ')" -ForegroundColor Cyan }
+        if (-not $PSCmdlet.ShouldProcess("winget", $wingetCommandStrings -join ' ')) {
+            Write-Host "User declined ShouldProcess for winget invocation" -ForegroundColor Yellow
+            return $false
+        }
         & winget @wingetCommandStrings
         $ec = $LASTEXITCODE
         Write-Host "winget exited with code $ec"
@@ -58,7 +76,7 @@ function Install-ById($id) {
         if ($wingetCmd -and $wingetCmd.CommandType -eq 'ExternalScript') {
             $scriptPath = $wingetCmd.Source
             try {
-                if ($Debug) { Write-Host "Invoking: powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath $($wingetCommandStrings -join ' ')" -ForegroundColor Cyan }
+                if ($DebugMode) { Write-Host "Invoking: powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath $($wingetCommandStrings -join ' ')" -ForegroundColor Cyan }
                 & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath @wingetCommandStrings
                 $ec = $LASTEXITCODE
                 Write-Host "powershell winget script exited with code $ec"
@@ -72,7 +90,24 @@ function Install-ById($id) {
     }
 }
 
+# Main flow: silent/non-interactive vs interactive menu
+if ($Silent) {
+    Write-Host "Non-interactive: attempting to install $primaryId (recommended)"
+    if (Install-ById $primaryId) {
+        Write-Host "Installed $primaryId successfully.";
+        exit 0
+    }
+    Write-Host "Primary install failed; attempting fallback..." -ForegroundColor Yellow
+    if (Install-ById $fallbackId) {
+        Write-Host "Installed $fallbackId successfully.";
+        exit 0
+    }
+    Write-Host "Both automatic installs failed." -ForegroundColor Red
+    exit 1
+}
+
 Write-Host "Choose an option to install:"
+
 Write-Host "  1) Install $primaryId (recommended)"
 Write-Host "  2) Install $fallbackId"
 Write-Host "  3) Pick from the search results by number"

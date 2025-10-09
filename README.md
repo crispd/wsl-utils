@@ -21,6 +21,36 @@ chmod +x scripts/run-ci-locally.sh
 NVM_VERSION="v0.39.6" ./scripts/run-ci-locally.sh
 ```
 
+Windows (native PowerShell) users
+---------------------------------
+
+If you're developing on native Windows (not WSL) and want a quick guided installer for Node.js, you can use the included PowerShell helper:
+
+```powershell
+./scripts/install-node.ps1
+# then open a new PowerShell session and verify:
+node --version
+npm --version
+```
+
+The PowerShell script will try to install Node via winget (recommended package id: OpenJS.NodeJS.LTS). If you prefer WSL, use `scripts/run-ci-locally.sh` instead.
+
+Dry-run and testing
+-------------------
+
+If you want to see what the installer would do without making changes, use the `-DryRun` flag:
+
+```powershell
+./scripts/install-node.ps1 -DryRun
+```
+
+You can combine `-DryRun` with `-Silent` to see the non-interactive install attempt:
+
+```powershell
+./scripts/install-node.ps1 -DryRun -Silent
+```
+
+
 ## Editor validation
 
 - The JSON schema for `manifest.json` is at `schema/manifest.schema.json`.
