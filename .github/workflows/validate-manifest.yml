@@ -26,11 +26,12 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Pester
+      - name: Install Pester (pinned)
         shell: pwsh
         run: |
-          # Install Pester for the current user (non-admin)
-          Install-Module -Name Pester -Scope CurrentUser -Force -SkipPublisherCheck
+          # Install a pinned Pester version for reproducible CI runs
+          $pesterVersion = '5.3.4'
+          Install-Module -Name Pester -RequiredVersion $pesterVersion -Scope CurrentUser -Force -SkipPublisherCheck
       - name: Run Pester test for install-node dry-run
         shell: pwsh
         run: |
