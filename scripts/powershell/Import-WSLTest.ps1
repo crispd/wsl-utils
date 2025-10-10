@@ -1,16 +1,16 @@
 <# Import-WSLTest.ps1 — import a .tar/.vhd/.vhdx backup as a new TEST distro.
    - Prompts for backup (defaults to $env:USERPROFILE\WSL\backups; supports -Recurse)
    - Imports .tar/.vhd/.vhdx (vhdx: copy + --import-in-place to keep backup immutable)
-   - Sets default user via repo script scripts/linux/set-default-user.sh
+   - Sets default user via repo script scripts/bash/set-default-user.sh
    - Enables lingering, restarts, verifies with whoami
 #>
 
 [CmdletBinding()]
 param(
-  [string]$BackupPath,
-  [string]$DistroName,
-  [string]$InstallDir,
-  [string]$DefaultUser,
+  [Alias('TarPath')][string]$BackupPath,
+  [Alias('NewDistroName')][string]$DistroName,
+  [Alias('InstallLocation')][string]$InstallDir,
+  [Alias('DefaultUserName')][string]$DefaultUser,
   [string]$SearchDir = (Join-Path $env:USERPROFILE 'WSL\backups'),
   [switch]$Recurse
 )
@@ -149,14 +149,16 @@ Write-Host "==> Setting default user inside '$DistroName'..." -ForegroundColor G
 # Find set-default-user.sh in several candidate locations; if missing, emit a fallback copy
 # TODO: This is dumb. It introduces a bash payload that helps find another bash script. Need to revisit the way powershell scripts are organized in repo and found by eachother...
 $candidates = @(
-    (Join-Path $PSScriptRoot 'linux\set-default-user.sh'),
+    (Join-Path (Split-Path $PSScriptRoot -Parent) 'bash\set-default-user.sh'),
     (Join-Path $PSScriptRoot 'set-default-user.sh'),
-    (Join-Path $env:USERPROFILE 'WSL\scripts\linux\set-default-user.sh'),
-    (Join-Path $env:USERPROFILE 'WSL\scripts\set-default-user.sh')
+    (Join-Path $PSScriptRoot 'linux\set-default-user.sh'),
+    (Join-Path $env:USERPROFILE 'WSL\scripts\set-default-user.sh'),
+    (Join-Path $env:USERPROFILE 'WSL\scripts\bash\set-default-user.sh'),
+    (Join-Path $env:USERPROFILE 'WSL\\scripts\\bash\\set-default-user.sh')
 ) | Where-Object { Test-Path -LiteralPath $_ }
 
 if ($candidates.Count -eq 0) {
-    $fallbackTarget = Join-Path $env:USERPROFILE 'WSL\scripts\linux\set-default-user.sh'
+    $fallbackTarget = Join-Path $env:USERPROFILE 'WSL\\scripts\\bash\\set-default-user.sh'
     $fallbackDir = Split-Path -Parent $fallbackTarget
     if (-not (Test-Path -LiteralPath $fallbackDir)) { New-Item -ItemType Directory -Force -Path $fallbackDir | Out-Null }
 
@@ -246,3 +248,6 @@ Write-Host "Install folder: $InstallDir"
 Write-Host "To remove the test distro: wsl --unregister $DistroName"
 Write-Host ""  # blank line
 Write-Host "Import-WSLTest.ps1: Done." -ForegroundColor Green
+
+
+

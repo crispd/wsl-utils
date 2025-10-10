@@ -25,14 +25,13 @@
 
   "scripts": {
     "ps": {
-      "backup":       { "path": "scripts/powershell/Backup-WSL.ps1",     "requiresElevation": false },
-      "export":       { "path": "scripts/powershell/Export-WSL.ps1",     "requiresElevation": false },
-      "import":       { "path": "scripts/powershell/Import-WSL.ps1",     "requiresElevation": true  },
-      "bootstrap":    { "path": "scripts/powershell/bootstrap.ps1",      "requiresElevation": false }
+      "backup":    { "path": "scripts/powershell/Backup-WSL.ps1",     "requiresElevation": false },
+      "import":    { "path": "scripts/powershell/Import-WSLTest.ps1", "requiresElevation": true  },
+      "bootstrap": { "path": "scripts/powershell/bootstrap.ps1",      "requiresElevation": false }
     },
     "bash": {
       "setDefaultUser": { "path": "scripts/bash/set-default-user.sh" },
-      "preClean":       { "path": "scripts/bash/pre-export-clean.sh"   }
+      "preClean":       { "path": "scripts/bash/pre-export-clean.sh" }
     }
   },
 
@@ -51,7 +50,7 @@
       "description": "Alias of backup with explicit path",
       "steps": [
         {
-          "run": "ps:export",
+          "run": "ps:backup",
           "args": ["-DistroName", "{distro}", "-Output", "{output}"]
         }
       ]

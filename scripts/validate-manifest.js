@@ -71,6 +71,29 @@ function loadSchema(uri) {
   return Promise.reject(new Error('Unable to load schema: ' + uri));
 }
 
+function collectMissingScriptPaths(manifest, rootDir) {
+  const missing = [];
+  if (!manifest || typeof manifest !== 'object' || !manifest.scripts) {
+    return missing;
+  }
+
+  for (const [lang, entries] of Object.entries(manifest.scripts)) {
+    if (!entries || typeof entries !== 'object') continue;
+    for (const [name, def] of Object.entries(entries)) {
+      if (!def || typeof def.path !== 'string') continue;
+      const relPath = def.path;
+      const absPath = path.resolve(rootDir, relPath);
+      if (!fs.existsSync(absPath)) {
+        missing.push({ lang, name, relativePath: relPath, fullPath: absPath });
+      }
+    }
+  }
+
+  return missing;
+}
+
+
+
 (async () => {
   try {
     // Prevent AJV from attempting to load the meta-schema referenced by the schema
@@ -81,28 +104,31 @@ function loadSchema(uri) {
 
     const validate = await ajv.compileAsync(schema);
     const valid = validate(data);
-    if (!valid) {
-      console.error('\nmanifest.json is INVALID — validation errors:');
+    const schemaErrors = (!valid && Array.isArray(validate.errors)) ? validate.errors : [];
+    const missingScripts = collectMissingScriptPaths(data, path.resolve(__dirname, '..'));
 
-      // Prepare markdown report
+    if (schemaErrors.length || missingScripts.length) {
+      console.error('\nmanifest.json is INVALID - see details below:');
+
       const reportLines = [];
       reportLines.push('# manifest.json validation report');
       reportLines.push('');
-      reportLines.push('The manifest failed validation against `schema/manifest.schema.json`. See details below.');
+      reportLines.push('The manifest failed validation. See the issues listed below.');
       reportLines.push('');
 
-      // Pretty-print AJV errors with context to help debugging
-      validate.errors.forEach((err, i) => {
+      let issueIndex = 0;
+
+      schemaErrors.forEach((err) => {
+        issueIndex += 1;
         const instancePath = err.instancePath || err.dataPath || '/';
         const schemaPath = err.schemaPath || '';
         const keyword = err.keyword || '';
         const message = err.message || '';
-        console.error(`\n[${i + 1}] ${keyword} ${message}`);
+        console.error(`\n[${issueIndex}] ${keyword} ${message}`);
         console.error(`  instancePath: ${instancePath}`);
         if (schemaPath) console.error(`  schemaPath: ${schemaPath}`);
         if (err.params) console.error(`  params: ${JSON.stringify(err.params)}`);
 
-        // Try to show a small snippet of the failing data
         let preview = '';
         try {
           const snippet = getDataAtPointer(data, instancePath);
@@ -113,9 +139,9 @@ function loadSchema(uri) {
           // ignore
         }
 
-        // Add to markdown report
-        reportLines.push(`## Error ${i + 1}`);
+        reportLines.push(`## Issue ${issueIndex}`);
         reportLines.push('');
+        reportLines.push('- **type**: schema');
         reportLines.push(`- **keyword**: ${keyword}`);
         reportLines.push(`- **message**: ${message}`);
         reportLines.push(`- **instancePath**: \`${instancePath}\``);
@@ -138,7 +164,22 @@ function loadSchema(uri) {
         reportLines.push('');
       });
 
-      // write report file
+      missingScripts.forEach((entry) => {
+        issueIndex += 1;
+        console.error(`\n[${issueIndex}] missing-script ${entry.relativePath}`);
+        console.error(`  instancePath: /scripts/${entry.lang}/${entry.name}`);
+        console.error(`  expectedPath: ${entry.relativePath}`);
+        console.error(`  resolvedPath: ${entry.fullPath}`);
+
+        reportLines.push(`## Issue ${issueIndex}`);
+        reportLines.push('');
+        reportLines.push('- **type**: missing-script');
+        reportLines.push(`- **script**: \`${entry.lang}:${entry.name}\``);
+        reportLines.push(`- **path**: \`${entry.relativePath}\``);
+        reportLines.push(`- **resolvedPath**: \`${entry.fullPath}\``);
+        reportLines.push('');
+      });
+
       try {
         const reportDir = path.resolve(__dirname, '..', 'reports');
         if (!fs.existsSync(reportDir)) fs.mkdirSync(reportDir, { recursive: true });
@@ -181,3 +222,6 @@ function getDataAtPointer(root, pointer) {
 function unescapePointer(str) {
   return str.replace(/~1/g, '/').replace(/~0/g, '~');
 }
+
+
+
