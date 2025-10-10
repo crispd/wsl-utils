@@ -21,3 +21,17 @@ jobs:
       - name: Run manifest validator
         run: |
           npm run validate:manifest
+
+  validate-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Pester
+        shell: pwsh
+        run: |
+          # Install Pester for the current user (non-admin)
+          Install-Module -Name Pester -Scope CurrentUser -Force -SkipPublisherCheck
+      - name: Run Pester test for install-node dry-run
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -Command "Import-Module Pester; Invoke-Pester -Script './scripts/tests/test-install-node-dryrun.Tests.ps1' -EnableExit"
