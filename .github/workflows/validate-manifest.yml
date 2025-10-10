@@ -26,9 +26,25 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Pester (pinned)
+      - name: Prepare PowerShell gallery + NuGet and install Pester (pinned)
         shell: pwsh
         run: |
+          # Ensure TLS 1.2 for PSGallery access
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+          # Ensure NuGet provider is available for Install-Module/Install-Package
+          if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
+            Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser
+          }
+
+          # Register PSGallery if it's missing
+          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
+            Register-PSRepository -Name PSGallery -SourceLocation 'https://www.powershellgallery.com/api/v2' -InstallationPolicy Trusted
+          }
+
+          # Mark PSGallery as trusted for installs
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+
           # Install a pinned Pester version for reproducible CI runs
           $pesterVersion = '5.3.4'
           Install-Module -Name Pester -RequiredVersion $pesterVersion -Scope CurrentUser -Force -SkipPublisherCheck
